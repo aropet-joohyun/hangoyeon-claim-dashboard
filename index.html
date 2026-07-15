@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>한고연몰 파손 클레임 월별 비교 분석</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;background:#f2f4f8;color:#1B2A4A}
+.wrap{max-width:1080px;margin:0 auto;padding:24px 20px 60px}
+.topbar{font-size:11px;letter-spacing:2px;color:#2D6BE4;font-weight:700;margin-bottom:8px}
+h1{font-size:25px;letter-spacing:-.5px;margin-bottom:6px}
+.sub{font-size:13px;color:#5a6478;margin-bottom:18px}
+nav{display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap}
+nav a{font-size:13px;font-weight:700;text-decoration:none;color:#1B2A4A;background:#fff;padding:9px 18px;border-radius:24px;box-shadow:0 1px 4px rgba(27,42,74,.08);cursor:pointer}
+nav a.on{background:#1B2A4A;color:#fff}
+nav a:hover{background:#2D6BE4;color:#fff}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px}
+.stat{background:#fff;border-radius:12px;padding:18px;box-shadow:0 1px 4px rgba(27,42,74,.08);border-top:3px solid transparent}
+.stat.t1{border-top-color:#2D6BE4}
+.stat.t2{border-top-color:#C9A961}
+.stat.t3{border-top-color:#1B2A4A}
+.stat .n{font-size:27px;font-weight:800}
+.stat.t1 .n{color:#2D6BE4}.stat.t2 .n{color:#C9A961}.stat.t3 .n{color:#1B2A4A}
+.stat .l{font-size:12px;color:#5a6478;margin-top:4px}
+.stat .d{font-size:11px;color:#9aa3b5;margin-top:2px}
+.panel{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 4px rgba(27,42,74,.08);margin-bottom:18px}
+.panel h2{font-size:15px;margin-bottom:6px;padding-left:10px;border-left:3px solid #2D6BE4}
+.pdesc{font-size:12px;color:#8089a0;margin-bottom:14px;padding-left:13px}
+.brow{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.blabel{width:300px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.btrack{flex:1;height:14px;background:#eef1f6;border-radius:7px;overflow:hidden;display:flex}
+.bfill{height:100%}
+.bnum{width:48px;font-size:12px;font-weight:700;text-align:right}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px;padding-left:13px}
+.legend span{font-size:11px;display:flex;align-items:center;gap:5px;color:#5a6478}
+.dot{width:10px;height:10px;border-radius:3px;display:inline-block}
+.mbars{display:flex;align-items:flex-end;gap:26px;height:210px;padding:0 10px 0 13px;margin-bottom:6px}
+.mcol{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;cursor:pointer}
+.pair{display:flex;align-items:flex-end;gap:5px;width:100%;justify-content:center;height:100%}
+.bwrap{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;width:40%}
+.bv{font-size:12px;font-weight:800;margin-bottom:4px}
+.mbar{width:100%;border-radius:6px 6px 0 0;transition:.15s;min-height:2px}
+.mcol:hover .mbar{opacity:.85}
+.mlab{font-size:13px;font-weight:700;margin-top:8px}
+.msub{font-size:10px;color:#8089a0;margin-top:2px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:#1B2A4A;color:#fff;padding:9px 10px;text-align:left;font-weight:700}
+td{padding:8px 10px;border-bottom:1px solid #eef1f6}
+tr:hover td{background:#f7f9fc}
+.tc{text-align:center}
+.card{background:#fff;border-radius:12px;padding:18px;box-shadow:0 1px 4px rgba(27,42,74,.08);margin-bottom:14px}
+.chead{display:flex;justify-content:space-between;margin-bottom:6px;align-items:center}
+.cname{font-weight:800;font-size:15px}
+.cdate{font-size:12px;color:#8089a0}
+.cprod{font-size:13px;line-height:1.5;margin-bottom:8px}
+.cmeta{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+.tag{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:700}
+.tag-cat{background:#e8effc;color:#2D6BE4}
+.tag-reason{background:#fdeeee;color:#d23f3f}
+.tag-res{background:#e9f7ef;color:#2d9e5f}
+.tag-src{background:#f0f2f6;color:#5a6478}
+.corder{font-size:11px;color:#8089a0;margin-bottom:10px}
+.voice{background:#f7f9fc;border-left:3px solid #2D6BE4;border-radius:0 8px 8px 0;padding:10px 14px;margin:0 0 12px;font-size:13px;line-height:1.65;color:#2c3a55;white-space:pre-wrap}
+.voice:before{content:'\201C';color:#c3cde0;font-size:22px;font-weight:800;margin-right:4px;line-height:0}
+.vlabel{font-size:10px;color:#8089a0;font-weight:700;letter-spacing:1px;margin-bottom:4px}
+.vcard{background:#fff;border-radius:12px;padding:16px 18px;box-shadow:0 1px 4px rgba(27,42,74,.08);margin-bottom:10px;border-left:4px solid #2D6BE4}
+.vquote{font-size:14px;line-height:1.7;color:#2c3a55;white-space:pre-wrap;margin-bottom:8px}
+.vmeta{font-size:11px;color:#8089a0}
+.phgrid{display:flex;gap:8px;flex-wrap:wrap}
+.ph{width:120px;height:120px;border-radius:8px;overflow:hidden;background:#eef1f6;cursor:pointer}
+.ph img{width:100%;height:100%;object-fit:cover;transition:.15s}
+.ph:hover img{transform:scale(1.05)}
+.phfail{display:flex;flex-direction:column;align-items:center;justify-content:center;width:120px;height:120px;border-radius:8px;background:#eef1f6;font-size:10px;color:#8089a0;text-align:center;gap:6px;padding:8px}
+.phfail a{color:#2D6BE4;font-weight:700;text-decoration:none;font-size:11px}
+.nophoto{font-size:12px;color:#9aa3b5}
+.sechead{font-size:16px;font-weight:800;margin:26px 0 12px;padding-left:12px;border-left:4px solid #2D6BE4}
+.sechead.gold{border-left-color:#C9A961}
+.sechead small{font-weight:500;font-size:12px;color:#8089a0;margin-left:8px}
+.foot{font-size:11px;color:#9aa3b5;text-align:center;margin-top:30px;line-height:1.7}
+.note{background:#fff8ec;border:1px solid #f0dcb2;border-radius:10px;padding:12px 16px;font-size:12px;color:#8a6d1f;margin-bottom:18px;line-height:1.6}
+.ins{display:flex;gap:10px;margin-bottom:10px;font-size:13px;line-height:1.6}
+.ins b{color:#2D6BE4;font-weight:800}
+#loading{text-align:center;padding:80px 0;color:#5a6478;font-size:14px}
+.spin{width:34px;height:34px;border:4px solid #dfe5ef;border-top-color:#2D6BE4;border-radius:50%;margin:0 auto 16px;animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+#err{display:none;background:#fdeeee;border:1px solid #f0c2c2;border-radius:10px;padding:16px;font-size:13px;color:#a33;line-height:1.7}
+#lb{display:none;position:fixed;inset:0;background:rgba(10,16,30,.92);z-index:99;align-items:center;justify-content:center}
+#lb.on{display:flex}
+#lb img{max-width:92vw;max-height:88vh;border-radius:8px}
+.lbbtn{position:fixed;color:#fff;font-size:34px;cursor:pointer;user-select:none;padding:16px;opacity:.75}
+.lbbtn:hover{opacity:1}
+#lbx{top:8px;right:16px}#lbp{left:8px;top:50%;transform:translateY(-50%)}#lbn{right:8px;top:50%;transform:translateY(-50%)}
+@media(max-width:640px){.stats{grid-template-columns:1fr}.blabel{width:130px}.mbars{gap:12px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">HANGOYEON MALL · CLAIM REPORT · LIVE</div>
+  <h1>한고연몰 파손 클레임 월별 비교 분석</h1>
+  <div class="sub" id="subline">데이터 불러오는 중…</div>
+  <nav id="nav"></nav>
+  <div id="loading"><div class="spin"></div>구글 시트에서 최신 데이터를 불러오는 중입니다…</div>
+  <div id="err"></div>
+  <div id="view"></div>
+  <div class="foot">내부 보고용 · 고객명·주문번호 마스킹 적용 · 페이지를 열 때마다 시트 최신 데이터 자동 반영 (시트 수정 후 반영까지 최대 5분)</div>
+</div>
+<div id="lb" onclick="if(event.target.id==='lb')closeLB()"><span class="lbbtn" id="lbx" onclick="closeLB()">×</span><span class="lbbtn" id="lbp" onclick="navLB(-1)">‹</span><img id="lbimg" src="" alt=""><span class="lbbtn" id="lbn" onclick="navLB(1)">›</span></div>
+
+<script>
+const CSV_URL='https://docs.google.com/spreadsheets/d/e/2PACX-1vSB6-7C1AcN_gkaL4oYZPELWXAho9gfMyxrra012R7tsvXWO-muSGkU5MNSqKDRa47Ro7BfdmGxYDcZ/pub?gid=133932506&single=true&output=csv';
+const NAVY='#1B2A4A',BLUE='#2D6BE4',GOLD='#C9A961',RED='#d23f3f',GREEN='#2d9e5f',LTBLUE='#8FA6C9';
+const CATCOLOR={'벤토나이트':NAVY,'카사바':BLUE,'두부모래':GOLD,'카사벤토':LTBLUE};
+let ROWS=[],CLAIM=[],RETURN=[],MONTHS=[],IMG_IDS=[],cur=0;
+
+function parseCSV(t){const rows=[];let row=[],f='',q=false;
+for(let i=0;i<t.length;i++){const c=t[i];
+if(q){if(c==='"'){if(t[i+1]==='"'){f+='"';i++;}else q=false;}else f+=c;}
+else{if(c==='"')q=true;else if(c===','){row.push(f);f='';}
+else if(c==='\n'){row.push(f);rows.push(row);row=[];f='';}
+else if(c!=='\r')f+=c;}}
+if(f!==''||row.length){row.push(f);rows.push(row);}return rows;}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function fid(u){const m=/\/d\/([\w-]+)/.exec(u||'');return m?m[1]:'';}
+function shortSku(p){return String(p||'').replace('아메리칸솔루션-','아메솔 ').replace('아메리칸솔루션 ','아메솔 ')
+ .replace('최고급 브라질산 카사바 먼지없는 고양이모래 ','').replace('먼지없는 고양이모래 ','')
+ .replace('고양이모래 ','').replace('먼지없는 모래 ','').replace('캐네디언샌드-','캐네디언샌드 ')
+ .replace('울트라샌드-','울트라샌드 ').replace('모래혁명 ','모래혁명 ').slice(0,32);}
+function firstLine(s){return String(s||'').split('\n')[0].slice(0,40);}
+function cnt(arr,k){const c={};arr.forEach(r=>{const v=k(r);if(v)c[v]=(c[v]||0)+1});return c;}
+function srt(c){return Object.entries(c).sort((a,b)=>b[1]-a[1]);}
+function ml(m){return parseInt(m.slice(5,7))+'월';}
+function isCur(m){const n=new Date();return m===n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0');}
+
+async function load(){
+ try{
+  const res=await fetch(CSV_URL+'&t='+Date.now());
+  if(!res.ok)throw new Error('HTTP '+res.status);
+  const raw=parseCSV(await res.text());
+  ROWS=raw.slice(1).filter(r=>r[0]&&/^\d{4}-\d{2}-\d{2}/.test(r[0].trim())).map(r=>({
+    date:r[0].trim(),store:(r[1]||'').trim(),order:(r[2]||'').trim(),name:(r[3]||'').trim(),
+    product:(r[4]||'').trim(),cat:(r[5]||'').trim(),qty:(r[6]||'').trim(),reason:(r[7]||'').trim(),
+    result:(r[8]||'').trim(),
+    photos:[r[9],r[10],r[11]].map(u=>(u||'').trim()).filter(u=>u.indexOf('drive.google')>=0),
+    src:(r[12]||'').trim(),type:(r[13]||'').trim(),courier:(r[14]||'').trim(),memo:(r[15]||'').trim()
+  }));
+  CLAIM=ROWS.filter(r=>r.type==='고객 클레임');
+  RETURN=ROWS.filter(r=>r.type==='파손반송');
+  const s={};ROWS.forEach(r=>s[r.date.slice(0,7)]=1);MONTHS=Object.keys(s).sort();
+  document.getElementById('loading').style.display='none';
+  buildNav();show('dash');
+ }catch(e){
+  document.getElementById('loading').style.display='none';
+  const el=document.getElementById('err');el.style.display='block';
+  el.innerHTML='데이터를 불러오지 못했습니다. 시트의 "웹에 게시" 상태를 확인해 주세요.<br>오류: '+esc(e.message)+'<br><a href="javascript:location.reload()" style="color:#2D6BE4;font-weight:700">다시 시도</a>';
+ }
+}
+function buildNav(){
+ let h='<a data-v="dash" class="on" onclick="show(\'dash\')">월별 비교</a>';
+ MONTHS.forEach(m=>{h+='<a data-v="'+m+'" onclick="show(\''+m+'\')">'+ml(m)+' 상세</a>';});
+ document.getElementById('nav').innerHTML=h;
+}
+function show(v){
+ document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('on',a.dataset.v===v));
+ if(v==='dash')dash();else month(v);window.scrollTo(0,0);
+}
+function bars(items,total,color){
+ return items.map(function(x){return '<div class="brow"><div class="blabel" title="'+esc(x[0])+'">'+esc(x[0])+'</div><div class="btrack"><div class="bfill" style="width:'+(x[1]/total*100).toFixed(1)+'%;background:'+color+'"></div></div><div class="bnum">'+x[1]+'건</div></div>';}).join('');
+}
+
+function dash(){
+ const C={},R={};MONTHS.forEach(m=>{C[m]=CLAIM.filter(r=>r.date.slice(0,7)===m);R[m]=RETURN.filter(r=>r.date.slice(0,7)===m);});
+ const maxv=Math.max.apply(null,MONTHS.map(m=>Math.max(C[m].length,R[m].length)));
+ const dates=ROWS.map(r=>r.date).sort();
+ document.getElementById('subline').textContent='기간 '+dates[0]+' ~ '+dates[dates.length-1]+' · 고객 클레임 '+CLAIM.length+'건 · 택배사 파손반송 '+RETURN.length+'건 · 조회 시점 기준 자동 갱신';
+
+ let mb='';
+ MONTHS.forEach(m=>{
+  const c=C[m].length,r=R[m].length;
+  mb+='<div class="mcol" onclick="show(\''+m+'\')"><div class="pair">'
+   +'<div class="bwrap"><div class="bv" style="color:'+BLUE+'">'+c+'</div><div class="mbar" style="height:'+(maxv?c/maxv*100:0)+'%;background:'+BLUE+'"></div></div>'
+   +'<div class="bwrap"><div class="bv" style="color:'+GOLD+'">'+r+'</div><div class="mbar" style="height:'+(maxv?r/maxv*100:0)+'%;background:'+GOLD+'"></div></div>'
+   +'</div><div class="mlab">'+ml(m)+'</div><div class="msub">'+(isCur(m)?'진행 중':'월 전체')+'</div></div>';
+ });
+
+ const cats=Object.keys(cnt(CLAIM,r=>r.cat));
+ const leg='<div class="legend">'+cats.map(c=>'<span><i class="dot" style="background:'+(CATCOLOR[c]||'#999')+'"></i>'+esc(c)+'</span>').join('')+'</div>';
+ let cs='';
+ MONTHS.forEach(m=>{
+  const rs=C[m];if(!rs.length){cs+='<div class="brow"><div class="blabel" style="width:60px;font-weight:700">'+ml(m)+'</div><div class="btrack"></div><div class="bnum">0건</div></div>';return;}
+  const cc=cnt(rs,r=>r.cat);let sg='';
+  cats.forEach(c=>{const v=cc[c]||0;if(v)sg+='<div class="bfill" style="width:'+(v/rs.length*100).toFixed(1)+'%;background:'+(CATCOLOR[c]||'#999')+'" title="'+esc(c)+' '+v+'건"></div>';});
+  cs+='<div class="brow"><div class="blabel" style="width:60px;font-weight:700">'+ml(m)+'</div><div class="btrack">'+sg+'</div><div class="bnum">'+rs.length+'건</div></div>';
+ });
+
+ const tsku=srt(cnt(CLAIM,r=>shortSku(r.product))).slice(0,8);
+ let sr='';
+ tsku.forEach(function(x){
+  const cells=MONTHS.map(m=>'<td class="tc">'+((cnt(C[m],r=>shortSku(r.product))[x[0]])||'·')+'</td>').join('');
+  sr+='<tr><td>'+esc(x[0])+'</td>'+cells+'<td class="tc" style="font-weight:800">'+x[1]+'</td></tr>';
+ });
+ const sh=MONTHS.map(m=>'<th class="tc">'+ml(m)+'</th>').join('');
+
+ const rsku=srt(cnt(RETURN,r=>shortSku(r.product))).slice(0,6);
+ let rr='';
+ rsku.forEach(function(x){
+  const cells=MONTHS.map(m=>'<td class="tc">'+((cnt(R[m],r=>shortSku(r.product))[x[0]])||'·')+'</td>').join('');
+  rr+='<tr><td>'+esc(x[0])+'</td>'+cells+'<td class="tc" style="font-weight:800">'+x[1]+'</td></tr>';
+ });
+
+ const ins=[];
+ const tot=CLAIM.length+RETURN.length;
+ ins.push('전체 파손 발생은 '+tot+'건이며, 이 중 고객이 실제로 겪은 클레임은 '+CLAIM.length+'건('+Math.round(CLAIM.length/tot*100)+'%), 고객에게 도달하지 못하고 배송 중 파손되어 반송된 건이 '+RETURN.length+'건('+Math.round(RETURN.length/tot*100)+'%)입니다.');
+ const full=MONTHS.filter(m=>!isCur(m));
+ if(full.length){
+  const worst=full.slice().sort((a,b)=>R[b].length-R[a].length)[0];
+  ins.push(ml(worst)+'은 파손반송이 '+R[worst].length+'건으로 고객 클레임('+C[worst].length+'건)의 '+(C[worst].length?(R[worst].length/C[worst].length).toFixed(1):'—')+'배에 달합니다. 파손 손실의 몸통이 배송 단계에 있음을 의미합니다.');
+ }
+ if(tsku[0])ins.push('고객 클레임 최다 SKU는 '+tsku[0][0]+' ('+tsku[0][1]+'건)로 포장 사양 점검 1순위입니다.');
+ if(rsku[0])ins.push('파손반송 최다 SKU는 '+rsku[0][0]+' ('+rsku[0][1]+'건)로, 중량·대용량 제품의 적재·완충 기준 재검토가 필요합니다.');
+ ins.push('파손반송은 고객이 수령하지 못한 채 회수되므로 사진 증빙이 없으며, 실물 손실 수량은 음성공장 반품시트와 대조해 별도 산출이 필요합니다.');
+ const ih=ins.map((t,i)=>'<div class="ins"><b>'+(i+1)+'</b><span>'+esc(t)+'</span></div>').join('');
+
+ document.getElementById('view').innerHTML=
+  '<div class="note">파손은 두 갈래로 발생합니다. <b>고객 클레임</b>은 고객이 수령 후 파손을 접수한 건(사진 있음), <b>택배사 파손반송</b>은 고객에게 도달하지 못하고 배송 중 파손되어 돌아온 건(고객 미수령, 사진 없음)입니다. 이 페이지는 열 때마다 최신 데이터를 자동 반영합니다.</div>'
+  +'<div class="stats">'
+  +'<div class="stat t1"><div class="n">'+CLAIM.length+'</div><div class="l">고객 클레임</div><div class="d">고객 수령 후 파손 접수</div></div>'
+  +'<div class="stat t2"><div class="n">'+RETURN.length+'</div><div class="l">택배사 파손반송</div><div class="d">고객 미수령 · 배송 중 파손</div></div>'
+  +'<div class="stat t3"><div class="n">'+tot+'</div><div class="l">전체 파손 발생</div><div class="d">두 트랙 합계</div></div>'
+  +'</div>'
+  +'<div class="panel"><h2>월별 파손 발생 비교</h2><div class="pdesc">파란색 = 고객 클레임 · 골드색 = 택배사 파손반송 · 막대 클릭 시 월별 상세</div><div class="legend"><span><i class="dot" style="background:'+BLUE+'"></i>고객 클레임</span><span><i class="dot" style="background:'+GOLD+'"></i>택배사 파손반송</span></div><div class="mbars">'+mb+'</div></div>'
+  +'<div class="panel"><h2>고객 클레임 · 월별 카테고리 구성</h2>'+leg+cs+'</div>'
+  +'<div class="panel"><h2>고객 클레임 · SKU별 월간 비교 (상위 8)</h2><table><tr><th>제품</th>'+sh+'<th class="tc">합계</th></tr>'+sr+'</table></div>'
+  +'<div class="panel"><h2>택배사 파손반송 · SKU별 월간 비교 (상위 6)</h2><div class="pdesc">배송 중 파손으로 회수된 제품. 포장·적재 기준 재검토 대상</div><table><tr><th>제품</th>'+sh+'<th class="tc">합계</th></tr>'+rr+'</table></div>'
+  +voicePanel()
+  +'<div class="panel"><h2>요약 인사이트</h2>'+ih+'</div>';
+}
+
+function voicePanel(){
+ const v=CLAIM.filter(r=>r.memo&&r.memo.length>=6).sort((a,b)=>a.date<b.date?1:-1).slice(0,6);
+ if(!v.length)return '';
+ const cards=v.map(x=>'<div class="vcard"><div class="vquote">'+esc(x.memo)+'</div><div class="vmeta">'+esc(x.date)+' · '+esc(x.name)+' · '+esc(shortSku(x.product))+'</div></div>').join('');
+ const tot=CLAIM.filter(r=>r.memo&&r.memo.trim()).length;
+ return '<div class="panel"><h2>고객의 목소리</h2><div class="pdesc">클레임 접수 시 고객이 직접 남긴 메모 · 최근 순 '+v.length+'건 (전체 '+tot+'건 기록)</div>'+cards+'</div>';
+}
+
+function month(m){
+ const c=CLAIM.filter(r=>r.date.slice(0,7)===m).sort((a,b)=>a.date<b.date?-1:1);
+ const r=RETURN.filter(x=>x.date.slice(0,7)===m).sort((a,b)=>a.date<b.date?-1:1);
+ IMG_IDS=[];
+ let cards='';
+ c.forEach(x=>{
+  let imgs='';
+  x.photos.forEach(u=>{const id=fid(u);if(!id)return;const i=IMG_IDS.length;IMG_IDS.push(id);
+   imgs+='<div class="ph" onclick="openLB('+i+')"><img src="https://drive.google.com/thumbnail?id='+id+'&sz=w1600" loading="lazy" alt="클레임 사진" onerror="phFail(this,\''+esc(u)+'\')"></div>';});
+  const noph=x.src==='CRM반품'?'<div class="nophoto">CRM 반품 경로 접수 · 사진 미수집</div>':'<div class="nophoto">사진 없음</div>';
+  cards+='<div class="card"><div class="chead"><span class="cname">'+esc(x.name)+'</span><span class="cdate">'+esc(x.date)+'</span></div>'
+   +'<div class="cprod">'+esc(x.product)+'</div>'
+   +'<div class="cmeta">'+(x.cat?'<span class="tag tag-cat">'+esc(x.cat)+'</span>':'')
+   +'<span class="tag tag-reason">'+esc(firstLine(x.reason))+'</span>'
+   +(x.result?'<span class="tag tag-res">'+esc(x.result)+'</span>':'')
+   +'<span class="tag tag-src">'+esc(x.src)+'</span></div>'
+   +'<div class="corder">주문번호 '+esc(x.order)+' · '+esc(x.store)+' · 수량 '+esc(x.qty||'-')+'</div>'
+   +(x.memo?'<div class="vlabel">고객의 목소리</div><div class="voice">'+esc(x.memo)+'</div>':'')
+   +'<div class="phgrid">'+(imgs||noph)+'</div></div>';
+ });
+ let rrows='';
+ r.forEach(x=>{rrows+='<tr><td>'+esc(x.date)+'</td><td>'+esc(x.product)+'</td><td class="tc">'+esc(x.qty||'-')+'</td><td>'+esc(x.courier||'-')+'</td><td>'+esc(firstLine(x.reason))+'</td></tr>';});
+ const cph=c.reduce((s,x)=>s+x.photos.length,0);
+ const note=isCur(m)?'<div class="note">'+ml(m)+'은 현재 진행 중인 달로, 조회 시점까지의 접수분입니다.</div>':'';
+ document.getElementById('view').innerHTML=note
+  +'<div class="stats">'
+  +'<div class="stat t1"><div class="n">'+c.length+'</div><div class="l">고객 클레임</div></div>'
+  +'<div class="stat t2"><div class="n">'+r.length+'</div><div class="l">택배사 파손반송</div></div>'
+  +'<div class="stat t3"><div class="n">'+cph+'</div><div class="l">수집된 파손 사진</div></div>'
+  +'</div>'
+  +(c.length?'<div class="panel"><h2>고객 클레임 · SKU별</h2>'+bars(srt(cnt(c,x=>shortSku(x.product))).slice(0,8),c.length,BLUE)+'</div>'
+   +'<div class="panel"><h2>고객 클레임 · 카테고리</h2>'+bars(srt(cnt(c,x=>x.cat)),c.length,NAVY)+'</div>':'')
+  +(r.length?'<div class="sechead gold">택배사 파손반송 <small>'+r.length+'건 · 고객 미수령 · 사진 없음</small></div>'
+   +'<div class="panel"><table><tr><th>반송일</th><th>제품</th><th class="tc">수량</th><th>택배사</th><th>사유</th></tr>'+rrows+'</table></div>':'')
+  +(c.length?'<div class="sechead">고객 클레임 상세 <small>'+c.length+'건</small></div>'+cards:'');
+}
+
+function T(i){return 'https://drive.google.com/thumbnail?id='+IMG_IDS[i]+'&sz=w2000';}
+function openLB(i){cur=i;document.getElementById('lbimg').src=T(cur);document.getElementById('lb').classList.add('on');}
+function closeLB(){document.getElementById('lb').classList.remove('on');}
+function navLB(d){cur=(cur+d+IMG_IDS.length)%IMG_IDS.length;document.getElementById('lbimg').src=T(cur);}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLB();if(e.key==='ArrowRight')navLB(1);if(e.key==='ArrowLeft')navLB(-1);});
+function phFail(img,orig){const d=document.createElement('div');d.className='phfail';d.innerHTML='이미지 로딩 실패<a href="'+orig+'" target="_blank" rel="noopener">원본 열기 ↗</a>';img.parentNode.replaceWith(d);}
+load();
+</script>
+</body>
+</html>
