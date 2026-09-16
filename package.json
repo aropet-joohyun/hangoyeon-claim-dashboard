@@ -1,0 +1,11 @@
+{
+  "name": "hangoyeon-claim-dashboard",
+  "private": true,
+  "type": "module",
+  "engines": { "node": "22.x" },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "node scripts/dev.mjs",
+    "test": "node --test"
+  }
+}
