@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseCSV, normalizeDate, parseArchive, parseCRM, combineRows, summarizeFactory, loadDashboard, photoURL } from '../lib/claim-data.js';
+import { parseCSV, normalizeDate, parseArchive, parseCRM, combineRows, summarizeFactory, loadDashboard, photoURL, parsePhotoForms, attachPhotoForms } from '../lib/claim-data.js';
 
 const csv = rows => rows.map(row => row.map(v => '"' + String(v ?? '').replaceAll('"', '""') + '"').join(',')).join('\r\n');
 const crmHeaders = ['날짜', '쇼핑몰', '분류', '상품주문번호', '수령인', '품목', '수량', '사유', '연락처', '재출고', '첨부이미지1', '사건UID'];
@@ -9,6 +9,8 @@ const factoryHeaders = ['반송일자', '업체명', '품목', '정상\n수량',
 const archive = csv([archiveHeaders, ['2026-08-03','한고연스스','2026080312345678','김*수','모래','','1','','','','','','CRM반품','파손반송']]);
 const crm = csv([[],[],[],[],crmHeaders,['2026. 9. 16','한고연스스','파손','2026091612345678','김철수','카사바 6kg','2','010-1234-5678 서울시 상세주소','010-1234-5678','서울시 상세주소','','CASE-1']]);
 const factory = csv([factoryHeaders, ['2026.09.16','한고연스스','모래','2','1','파손반송']]);
+const photoHeaders = ['날짜','구매처','상품주문번호','고객명','제품명','카테고리','수량','사진1','사진2','사진3','고객메모'];
+const photos = csv([photoHeaders]);
 
 test('CSV keeps quoted multiline fields, commas, escaped quotes and Korean BOM headers', () => {
   assert.deepEqual(parseCSV('\uFEFF' + csv([['날짜','사유'],['2026. 9. 2','문의, "파손"\n>교환']])), [['날짜','사유'],['2026. 9. 2','문의, "파손"\n>교환']]);
@@ -62,9 +64,9 @@ test('photo URLs accept Drive IDs and reject unsafe or unrelated destinations',(
 });
 function fetcher(overrides={}) {
   return async url => {
-    const which=url.includes('2PACX')?'archive':url.includes('1Ju4')?'crm':'factory';
+    const which=url.includes('2PACX')?'archive':url.includes('1Ju4')?'crm':url.includes('1Ml8')?'photos':'factory';
     if(overrides[which] instanceof Error)throw overrides[which];
-    return new Response(overrides[which]??{archive,crm,factory}[which]);
+    return new Response(overrides[which]??{archive,crm,factory,photos}[which]);
   };
 }
 test('live pipeline retains archive, adds CRM and never adds factory rows to claims',async()=>{
@@ -79,4 +81,39 @@ test('CRM failure fails closed rather than serving stale September data',async()
 test('factory failure leaves CRM available with an explicit warning',async()=>{
   const data=await loadDashboard(fetcher({factory:new Error('timeout')}));
   assert.equal(data.rows.length,2); assert.equal(data.factory,null); assert.equal(data.warnings.length,1);
+});
+
+const photo='https://drive.google.com/file/d/photo_123/view';
+function formRows(product='아메리칸솔루션 고양이모래 옵티멈, 6kg, 2개',order='2026091612345678',date='2026-09-16') {
+  return parsePhotoForms(csv([photoHeaders,[date,'한고연스스',order,'김철수',product,'카사바','1',photo,photo,'','서울시 010-1234-5678']]));
+}
+function claimRows(product='아메리칸솔루션-그랜드마스터 옵티멈 카사바 6kg*2봉',order='2026091612345678',date='2026.9.16') {
+  return parseCRM(csv([crmHeaders,[date,'한고연스스','파손',order,'김철수',product]])).rows;
+}
+test('form photos join by full order, product line/weight and nearby date without adding cases',()=>{
+  const result=attachPhotoForms(claimRows(),formRows());
+  assert.equal(result.rows.length,1);assert.equal(result.rows[0].photos.length,1);
+  assert.equal(result.summary.linkedSubmissions,1);assert.equal(result.unlinked.length,0);
+  assert.equal(result.rows[0].cat,'카사바');
+  for(const secret of ['2026091612345678','김철수','010-1234-5678','서울시'])assert.ok(!JSON.stringify(result).includes(secret));
+});
+test('identical masked order prefixes never merge distinct full orders',()=>{
+  const result=attachPhotoForms(claimRows(),formRows(undefined,'2026091699999999'));
+  assert.equal(result.rows[0].photos.length,0);assert.equal(result.unlinked.length,1);
+});
+test('different product, weight, old date or ambiguous incidents remain visible but unlinked',()=>{
+  for(const forms of [formRows('아메리칸솔루션 그랜드마스터 12.6kg'),formRows('아메리칸솔루션 옵티멈 4kg'),formRows(undefined,undefined,'2026-09-10')]){
+    const result=attachPhotoForms(claimRows(),forms);
+    assert.equal(result.rows[0].photos.length,0);assert.equal(result.unlinked.length,1);
+  }
+  const result=attachPhotoForms([...claimRows(),...claimRows()],formRows());
+  assert.equal(result.unlinked.length,1);assert.equal(result.summary.photos,1);
+});
+test('one-day reporting delay is allowed; same order a week later is not reused',()=>{
+  const result=attachPhotoForms([...claimRows(undefined,undefined,'2026.9.15'),...claimRows(undefined,undefined,'2026.9.9')],formRows());
+  assert.equal(result.rows[0].photos.length,1);assert.equal(result.rows[1].photos.length,0);
+});
+test('photo-source failure is an explicit unavailable state rather than zero photos',async()=>{
+  const data=await loadDashboard(fetcher({photos:new Error('unavailable')}));
+  assert.equal(data.rows.length,2);assert.equal(data.photoSummary.status,'unavailable');assert.equal(data.warnings.length,1);
 });

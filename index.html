@@ -83,6 +83,8 @@ tr:hover td{background:#f7f9fc}
 .source-status button{border:1px solid #d9e0ec;background:white;border-radius:8px;padding:6px 10px;margin-left:8px;cursor:pointer;color:#1B2A4A}
 .panel{overflow-x:auto}.factory .stats{margin:16px 0}.factory .stat{box-shadow:none;background:#f7f9fc}
 .factory p{font-size:12px;color:#5a6478;line-height:1.7}.factory a{color:#2D6BE4}
+.photo-note{font-size:12px;line-height:1.7;color:#5a6478}.photo-note button{margin-top:8px;border:0;border-radius:8px;padding:8px 14px;background:#2D6BE4;color:#fff;cursor:pointer}
+details summary{cursor:pointer;font-weight:700;padding:12px 0}.photo-source{font-size:11px;color:#5a6478;margin:8px 0}
 .ins{display:flex;gap:10px;margin-bottom:10px;font-size:13px;line-height:1.6}
 .ins b{color:#2D6BE4;font-weight:800}
 #loading{text-align:center;padding:80px 0;color:#5a6478;font-size:14px}
@@ -144,7 +146,7 @@ async function load(){
   const s={};ROWS.forEach(r=>s[r.date.slice(0,7)]=1);s[DATA.liveMonth]=1;MONTHS=Object.keys(s).sort();
   document.getElementById('loading').style.display='none';
   document.getElementById('source-status').innerHTML='9월 CRM 최종 기록일 '+esc(DATA.crmLatestDate||'기록 없음')+' · 조회 '+esc(new Date(DATA.fetchedAt).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'}))+' (한국시간) <button type="button" onclick="load()">새로고침</button>'
-   +'<br>5~8월은 기존 집계, 9월 CRM은 최종 분류 ‘파손’·‘파손반송’ 기준입니다. 클레임폼 기록은 별도로 유지합니다.'
+   +'<br>5~8월은 기존 집계, 9월 건수는 CRM 최종 분류 ‘파손’·‘파손반송’ 기준입니다. 9월 사진은 클레임 접수 원본에서 조회합니다.'
    +DATA.warnings.map(w=>'<div class="note">'+esc(w)+'</div>').join('');
   const dates=ROWS.map(r=>r.date).sort();
   document.getElementById('subline').textContent=(dates.length?'기간 '+dates[0]+' ~ '+dates[dates.length-1]:'접수 기록 없음')+' · 고객 클레임 '+CLAIM.length+'건 · 택배사 파손반송 '+RETURN.length+'건';
@@ -230,6 +232,7 @@ function dash(){
   +'</div>'
   +'<div class="panel"><h2>월별 파손 발생 비교</h2><div class="pdesc">파란색 = 고객 클레임 · 골드색 = 택배사 파손반송 · 막대 클릭 시 월별 상세</div><div class="legend"><span><i class="dot" style="background:'+BLUE+'"></i>고객 클레임</span><span><i class="dot" style="background:'+GOLD+'"></i>택배사 파손반송</span></div><div class="mbars">'+mb+'</div></div>'
   +factoryPanel()
+  +photoPanel()
   +'<div class="panel"><h2>고객 클레임 · 월별 카테고리 구성</h2>'+leg+cs+'</div>'
   +'<div class="panel"><h2>고객 클레임 · SKU별 월간 비교 (상위 8)</h2><table><tr><th>제품</th>'+sh+'<th class="tc">합계</th></tr>'+sr+'</table></div>'
   +'<div class="panel"><h2>택배사 파손반송 · SKU별 월간 비교 (상위 6)</h2><div class="pdesc">배송 중 파손으로 회수된 제품. 포장·적재 기준 재검토 대상</div><table><tr><th>제품</th>'+sh+'<th class="tc">합계</th></tr>'+rr+'</table></div>'
@@ -248,6 +251,20 @@ function factoryPanel(m){
   +'<p>단순변심·품질불만·회수불가 등 전체 반품 기록입니다. 파손 수량에는 개봉 회수 제품이 포함될 수 있어 배송 파손 수량과 다릅니다. 수량 미입력 또는 숫자 확인이 필요한 '+f.missingQuantityRecords+'행은 입력된 숫자만 합산했습니다.</p></div>';
 }
 
+function photoPanel(m){
+ const p=DATA.photoSummary;
+ if(!p||(m&&m!==p.month))return '';
+ if(p.status!=='ready')return '<div class="panel"><h2>9월 파손 사진</h2><p class="photo-note">사진 원본 연결을 확인할 수 없습니다. 새로고침으로 다시 조회해 주세요.</p></div>';
+ return '<div class="panel"><h2>'+ml(p.month)+' 파손 사진 · '+p.photos+'장</h2><p class="photo-note">사진 접수 '+p.submissions+'건 · CRM 연결 '+p.linkedSubmissions+'건 · 연결 확인 필요 '+p.unlinkedSubmissions+'건 · 사진 최종 접수일 '+esc(p.latestDate||'없음')+'<br>주문번호와 상품이 같고 접수일 차이가 1일 이내인 사진을 고객 클레임 상세에 연결합니다. 확인이 필요한 사진은 별도로 표시하며 CRM 건수에 합산하지 않습니다.'
+  +(m?'':'<br><button type="button" onclick="show(\''+p.month+'\')">사진과 접수 내역 보기</button>')+'</p></div>';
+}
+
+function renderPhotos(photos){
+ return photos.map(u=>{const id=fid(u);if(!id)return '';const i=IMG_IDS.length;IMG_IDS.push(id);
+  return '<div class="ph" onclick="openLB('+i+')"><img src="https://drive.google.com/thumbnail?id='+id+'&sz=w1600" loading="lazy" alt="클레임 사진" onerror="phFail(this,\''+esc(u)+'\')"></div>';
+ }).join('');
+}
+
 function voicePanel(){
  const v=CLAIM.filter(r=>r.memo&&r.memo.length>=6).sort((a,b)=>a.date<b.date?1:-1).slice(0,6);
  if(!v.length)return '';
@@ -262,10 +279,8 @@ function month(m){
  IMG_IDS=[];
  let cards='';
  c.forEach(x=>{
-  let imgs='';
-  x.photos.forEach(u=>{const id=fid(u);if(!id)return;const i=IMG_IDS.length;IMG_IDS.push(id);
-   imgs+='<div class="ph" onclick="openLB('+i+')"><img src="https://drive.google.com/thumbnail?id='+id+'&sz=w1600" loading="lazy" alt="클레임 사진" onerror="phFail(this,\''+esc(u)+'\')"></div>';});
-  const noph=x.src==='CRM반품'?'<div class="nophoto">CRM 원본에 조회 가능한 사진 없음</div>':'<div class="nophoto">사진 없음</div>';
+  const imgs=renderPhotos(x.photos);
+  const noph=x.src==='CRM반품'?'<div class="nophoto">이 접수 내역에 연결된 사진 없음</div>':'<div class="nophoto">사진 없음</div>';
   cards+='<div class="card"><div class="chead"><span class="cname">'+esc(x.name)+'</span><span class="cdate">'+esc(x.date)+'</span></div>'
    +'<div class="cprod">'+esc(x.product)+'</div>'
    +'<div class="cmeta">'+(x.cat?'<span class="tag tag-cat">'+esc(x.cat)+'</span>':'')
@@ -273,12 +288,15 @@ function month(m){
    +(x.result?'<span class="tag tag-res">'+esc(x.result)+'</span>':'')
    +'<span class="tag tag-src">'+esc(x.src)+'</span></div>'
    +'<div class="corder">주문번호 '+esc(x.order)+' · '+esc(x.store)+' · 수량 '+esc(x.qty||'-')+'</div>'
+   +(x.photoFormDates?'<div class="photo-source">클레임폼 사진 연결 · 사진 접수일 '+esc(x.photoFormDates.join(', '))+'</div>':'')
    +(x.memo?'<div class="vlabel">고객의 목소리</div><div class="voice">'+esc(x.memo)+'</div>':'')
    +'<div class="phgrid">'+(imgs||noph)+'</div></div>';
  });
  let rrows='';
  r.forEach(x=>{rrows+='<tr><td>'+esc(x.date)+'</td><td>'+esc(x.product)+'</td><td class="tc">'+esc(x.qty||'-')+'</td><td>'+esc(x.courier||'-')+'</td><td>'+esc(firstLine(x.reason))+'</td></tr>';});
- const cph=c.reduce((s,x)=>s+x.photos.length,0);
+ const unlinked=(DATA.unlinkedPhotos||[]).filter(x=>x.date.slice(0,7)===m);
+ const unlinkedCards=unlinked.map(x=>'<div class="card"><div class="chead"><span class="cname">'+esc(x.name)+'</span><span class="cdate">'+esc(x.date)+'</span></div><div class="cprod">'+esc(x.product)+'</div><div class="corder">주문번호 '+esc(x.order)+' · '+esc(x.store)+'</div><div class="photo-source">'+esc(x.matchNote)+'</div><div class="phgrid">'+renderPhotos(x.photos)+'</div></div>').join('');
+ const cph=DATA.photoSummary?.month===m&&DATA.photoSummary.status!=='ready'?'확인 불가':new Set([...c,...unlinked].flatMap(x=>x.photos)).size;
  const note=isCur(m)?'<div class="note">'+ml(m)+'은 현재 진행 중인 달로, 시트에 기록된 접수분입니다.</div>':'';
  document.getElementById('view').innerHTML=note
   +'<div class="stats">'
@@ -286,6 +304,8 @@ function month(m){
   +'<div class="stat t2"><div class="n">'+r.length+'</div><div class="l">택배사 파손반송</div></div>'
   +'<div class="stat t3"><div class="n">'+cph+'</div><div class="l">수집된 파손 사진</div></div>'
   +'</div>'
+  +photoPanel(m)
+  +(unlinked.length?'<div class="panel"><details><summary>CRM 연결 확인이 필요한 사진 '+unlinked.length+'건 · '+new Set(unlinked.flatMap(x=>x.photos)).size+'장</summary><p class="photo-note">CRM에 주문번호가 없거나 상품·접수일이 달라 자동으로 연결하지 않은 사진입니다.</p>'+unlinkedCards+'</details></div>':'')
   +factoryPanel(m)
   +(c.length?'<div class="panel"><h2>고객 클레임 · SKU별</h2>'+bars(srt(cnt(c,x=>shortSku(x.product))).slice(0,8),c.length,BLUE)+'</div>'
    +'<div class="panel"><h2>고객 클레임 · 카테고리</h2>'+bars(srt(cnt(c,x=>x.cat)),c.length,NAVY)+'</div>':'')
