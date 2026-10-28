@@ -12,6 +12,10 @@ const crm = csv([[],[],[],[],crmHeaders,['2026. 9. 16','한고연스스','파손
 const factory = csv([factoryHeaders, ['2026.09.16','한고연스스','모래','2','1','파손반송']]);
 const photoHeaders = ['날짜','구매처','상품주문번호','고객명','제품명','카테고리','수량','사진1','사진2','사진3','고객메모'];
 const photos = csv([photoHeaders]);
+const catalog = (kind, extra=[]) => [
+  [kind==='crm'?'2026 9월':'2609',kind==='crm'?'108127051':'1947637381'],
+  [kind==='crm'?'2026 10월':'2610',kind==='crm'?'23809276':'24962578'], ...extra
+].map(([title,gid])=>'items.push({name: '+JSON.stringify(title)+', pageUrl: "unused", gid: "'+gid+'", initialSheet: false});').join('');
 
 test('October loads its own tabs while September remains intact', async () => {
   const requested = [];
@@ -20,7 +24,7 @@ test('October loads its own tabs while September remains intact', async () => {
     if (url.includes('gid=23809276')) return new Response(crm.replaceAll('2026. 9. 16', '2026. 10. 16'));
     if (url.includes('gid=24962578')) return new Response(factory.replaceAll('2026.09.16', '2026.10.16'));
     return fetcher()(url);
-  });
+  }, new Date('2026-10-28T00:00:00Z'));
   assert.equal(data.liveMonth, '2026-10');
   assert.deepEqual(data.rows.map(r => r.date).sort(), ['2026-08-03', '2026-09-16', '2026-10-16']);
   for (const month of ['2026-09', '2026-10']) {
@@ -99,6 +103,7 @@ test('October factory numeric date header is recovered only with a verified layo
 });
 function fetcher(overrides={}) {
   return async url => {
+    if(url.includes('/htmlview'))return new Response(catalog(url.includes('1Ju4')?'crm':'factory'));
     const which=url.includes('2PACX')?'archive':url.includes('1Ju4')?'crm':url.includes('1Ml8')?'photos':'factory';
     if(overrides[which] instanceof Error)throw overrides[which];
     return new Response(overrides[which]??{archive,crm,factory,photos}[which]);
@@ -108,6 +113,76 @@ test('live pipeline retains archive, adds CRM and never adds factory rows to cla
   const data=await loadDashboard(fetcher());
   assert.equal(data.rows.length,2); assert.equal(data.factory.records,1); assert.deepEqual(data.warnings,[]);
   assert.equal(parseArchive(archive)[0].date,'2026-08-03');
+});
+
+test('2027 January discovers new gids, retains history and never uses a future or copied tab', async () => {
+  const requested=[];
+  const data=await loadAllMonths(async url=>{
+    requested.push(url);
+    if(url.includes('/htmlview'))return new Response(catalog(url.includes('1Ju4')?'crm':'factory',url.includes('1Ju4')?
+      [['2027 1월','701'],['2027 2월','703'],['2027 1월의 사본','704']]:[['2701','702']]));
+    if(url.includes('gid=701'))return new Response(crm.replaceAll('2026. 9. 16','2027. 1. 16'));
+    if(url.includes('gid=702'))return new Response(factory.replaceAll('2026.09.16','2027.01.16'));
+    return fetcher()(url);
+  },new Date('2026-12-31T15:00:00Z'));
+  assert.equal(data.liveMonth,'2027-01');
+  assert.ok(data.liveMonths.includes('2027-01'));
+  assert.ok(!data.liveMonths.includes('2027-02'));
+  assert.equal(data.monthStatuses['2027-01'].crm,'ready');
+  assert.equal(data.factories['2027-01'].records,1);
+  assert.ok(data.rows.some(r=>r.date==='2027-01-16'));
+  assert.ok(data.rows.some(r=>r.date==='2026-09-16'));
+  assert.ok(!requested.some(url=>url.includes('gid=703')||url.includes('gid=704')));
+});
+
+test('missing current sheet is pending, not zero; historical months remain available',async()=>{
+  const data=await loadAllMonths(fetcher(),new Date('2026-11-01T00:00:00Z'));
+  assert.equal(data.liveMonth,'2026-11');
+  assert.equal(data.monthStatuses['2026-11'].crm,'pending');
+  assert.equal(data.monthStatuses['2026-09'].crm,'ready');
+  assert.ok(data.warnings.some(w=>w.includes('2026-11 CRM 시트 준비 중')));
+});
+
+test('discovery failure is unavailable, never a successful zero or guessed gid',async()=>{
+  const data=await loadAllMonths(async url=>{
+    if(url.includes('/htmlview')&&url.includes('1Ju4'))return new Response('<html>sign in</html>');
+    return fetcher()(url);
+  },new Date('2026-10-28T00:00:00Z'));
+  assert.equal(data.monthStatuses['2026-10'].crm,'unavailable');
+  assert.equal(data.rows.length,1);
+  assert.ok(data.warnings.some(w=>w.includes('CRM 연결 오류')));
+});
+
+test('a failed month does not block another month and duplicate monthly tabs are rejected',async()=>{
+  const data=await loadAllMonths(async url=>{
+    if(url.includes('/htmlview')&&url.includes('1Ju4'))return new Response(catalog('crm',[['2026년 10월','705']]));
+    return fetcher()(url);
+  },new Date('2026-10-28T00:00:00Z'));
+  assert.equal(data.monthStatuses['2026-10'].crm,'unavailable');
+  assert.equal(data.monthStatuses['2026-09'].crm,'ready');
+});
+
+test('an existing, valid empty CRM sheet is a verified zero',async()=>{
+  const data=await loadAllMonths(async url=>{
+    if(url.includes('gid=23809276'))return new Response(csv([crmHeaders]));
+    return fetcher()(url);
+  },new Date('2026-10-28T00:00:00Z'));
+  assert.equal(data.monthStatuses['2026-10'].crm,'ready');
+  assert.equal(data.rows.filter(r=>r.date.startsWith('2026-10')).length,0);
+});
+
+test('monthly HTTP errors remain isolated and shared sources are fetched only once',async()=>{
+  const requests=[];
+  const data=await loadAllMonths(async url=>{
+    requests.push(url);
+    if(url.includes('gid=23809276'))return new Response('unavailable',{status:503});
+    return fetcher()(url);
+  },new Date('2026-10-28T00:00:00Z'));
+  assert.equal(data.monthStatuses['2026-10'].crm,'unavailable');
+  assert.equal(data.monthStatuses['2026-09'].crm,'ready');
+  assert.equal(requests.filter(url=>url.includes('2PACX')).length,1);
+  assert.equal(requests.filter(url=>url.includes('1Ml8')).length,1);
+  for(const secret of ['김철수','2026091612345678','010-1234-5678','서울시'])assert.ok(!JSON.stringify(data).includes(secret));
 });
 test('CRM failure fails closed rather than serving stale September data',async()=>{
   await assert.rejects(()=>loadDashboard(fetcher({crm:new Error('timeout')})));

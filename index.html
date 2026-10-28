@@ -35,8 +35,8 @@ nav a:hover{background:#2D6BE4;color:#fff}
 .legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px;padding-left:13px}
 .legend span{font-size:11px;display:flex;align-items:center;gap:5px;color:#5a6478}
 .dot{width:10px;height:10px;border-radius:3px;display:inline-block}
-.mbars{display:flex;align-items:flex-end;gap:26px;height:210px;padding:0 10px 0 13px;margin-bottom:6px}
-.mcol{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;cursor:pointer}
+.mbars{display:flex;align-items:flex-end;gap:26px;height:210px;padding:0 10px 0 13px;margin-bottom:6px;min-width:max-content}
+.mcol{flex:1;min-width:64px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;cursor:pointer}
 .pair{display:flex;align-items:flex-end;gap:5px;width:100%;justify-content:center;height:100%}
 .bwrap{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;width:40%}
 .bv{font-size:12px;font-weight:800;margin-bottom:4px}
@@ -110,7 +110,7 @@ details summary{cursor:pointer;font-weight:700;padding:12px 0}.photo-source{font
   <div id="loading"><div class="spin"></div>구글 시트에서 최신 데이터를 불러오는 중입니다…</div>
   <div id="err"></div>
   <div id="view"></div>
-  <div class="foot">내부 보고용 · 고객명·주문번호 마스킹 적용 · 9~10월 CRM·공장 반품시트 자동 조회 · 시트 반영 시간에 따라 갱신이 지연될 수 있습니다.</div>
+  <div class="foot">내부 보고용 · 고객명·주문번호 마스킹 적용 · 월별 원본 자동 연결 · 한국시간 기준 월 전환 · 5분 자동 갱신 · 시트 반영 시간에 따라 갱신이 지연될 수 있습니다.</div>
 </div>
 <div id="lb" onclick="if(event.target.id==='lb')closeLB()"><span class="lbbtn" id="lbx" onclick="closeLB()">×</span><span class="lbbtn" id="lbp" onclick="navLB(-1)">‹</span><img id="lbimg" src="" alt=""><span class="lbbtn" id="lbn" onclick="navLB(1)">›</span></div>
 
@@ -118,6 +118,7 @@ details summary{cursor:pointer;font-weight:700;padding:12px 0}.photo-source{font
 const NAVY='#1B2A4A',BLUE='#2D6BE4',GOLD='#C9A961',RED='#d23f3f',GREEN='#2d9e5f',LTBLUE='#8FA6C9';
 const CATCOLOR={'벤토나이트':NAVY,'카사바':BLUE,'두부모래':GOLD,'카사벤토':LTBLUE};
 let ROWS=[],CLAIM=[],RETURN=[],MONTHS=[],IMG_IDS=[],cur=0,DATA=null,activeView='dash';
+let loading=false,lastLoaded=0;
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function fid(u){const m=/\/d\/([\w-]+)/.exec(u||'');return m?m[1]:'';}
 function shortSku(p){return String(p||'').replace('아메리칸솔루션-','아메솔 ').replace('아메리칸솔루션 ','아메솔 ')
@@ -127,10 +128,15 @@ function shortSku(p){return String(p||'').replace('아메리칸솔루션-','아�
 function firstLine(s){return String(s||'').split('\n')[0].slice(0,40);}
 function cnt(arr,k){const c={};arr.forEach(r=>{const v=k(r);if(v)c[v]=(c[v]||0)+1});return c;}
 function srt(c){return Object.entries(c).sort((a,b)=>b[1]-a[1]);}
-function ml(m){return parseInt(m.slice(5,7))+'월';}
-function isCur(m){const n=new Date();return m===n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0');}
+function currentMonth(){const p=new Intl.DateTimeFormat('en',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit'}).formatToParts(new Date());return p.find(x=>x.type==='year').value+'-'+p.find(x=>x.type==='month').value;}
+function ml(m){return (MONTHS.some(x=>x.slice(0,4)!==m.slice(0,4))?m.slice(0,4)+'년 ':'')+parseInt(m.slice(5,7))+'월';}
+function isCur(m){return m===currentMonth();}
+function unavailable(m){return DATA.monthStatuses?.[m]&&DATA.monthStatuses[m].crm!=='ready';}
+function monthState(m){return DATA.monthStatuses?.[m]?.crm==='pending'?'시트 준비 중':unavailable(m)?'연결 오류 · 확인 불가':isCur(m)?'진행 중':'월 전체';}
 
 async function load(){
+ if(loading)return;loading=true;
+ const previousMonth=DATA?.liveMonth;
  document.getElementById('loading').style.display='block';
  document.getElementById('err').style.display='none';
  document.getElementById('view').innerHTML='';
@@ -143,20 +149,21 @@ async function load(){
   DATA=await res.json(); ROWS=DATA.rows;
   CLAIM=ROWS.filter(r=>r.type==='고객 클레임');
   RETURN=ROWS.filter(r=>r.type==='파손반송');
-  const s={};ROWS.forEach(r=>s[r.date.slice(0,7)]=1);s[DATA.liveMonth]=1;MONTHS=Object.keys(s).sort();
+  const s={};ROWS.forEach(r=>s[r.date.slice(0,7)]=1);(DATA.liveMonths||[]).forEach(m=>s[m]=1);s[DATA.liveMonth]=1;MONTHS=Object.keys(s).sort();
   document.getElementById('loading').style.display='none';
   document.getElementById('source-status').innerHTML=ml(DATA.liveMonth)+' CRM 최종 기록일 '+esc(DATA.crmLatestDate||'기록 없음')+' · 조회 '+esc(new Date(DATA.fetchedAt).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'}))+' (한국시간) <button type="button" onclick="load()">새로고침</button>'
-   +'<br>5~8월은 기존 집계, 9~10월 건수는 각 월 CRM 최종 분류 ‘파손’·‘파손반송’ 기준입니다. 사진은 해당 월 클레임 접수 원본에서 조회합니다.'
+   +'<br>2026년 8월까지는 기존 집계, 이후는 각 월 CRM 최종 분류 ‘파손’·‘파손반송’ 기준입니다. 새 월 시트는 자동 연결하며, 준비 중·연결 오류는 0건과 구분합니다. 5분마다 자동 갱신합니다.'
    +DATA.warnings.map(w=>'<div class="note">'+esc(w)+'</div>').join('');
   const dates=ROWS.map(r=>r.date).sort();
   document.getElementById('subline').textContent=(dates.length?'기간 '+dates[0]+' ~ '+dates[dates.length-1]:'접수 기록 없음')+' · 고객 클레임 '+CLAIM.length+'건 · 택배사 파손반송 '+RETURN.length+'건';
-  buildNav();show(MONTHS.includes(activeView)?activeView:'dash');
+  lastLoaded=Date.now();
+  buildNav();show(previousMonth&&previousMonth!==DATA.liveMonth?DATA.liveMonth:MONTHS.includes(activeView)?activeView:'dash');
  }catch(e){
   document.getElementById('loading').style.display='none';
   const el=document.getElementById('err');el.style.display='block';
   document.getElementById('subline').textContent='데이터 연결 확인 필요';
   el.innerHTML='데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.<br>오류: '+esc(e.message)+'<br><button type="button" onclick="load()">다시 시도</button>';
- }
+ }finally{loading=false;}
 }
 function buildNav(){
  let h='<a data-v="dash" class="on" onclick="show(\'dash\')">월별 비교</a>';
@@ -179,16 +186,26 @@ function dash(){
  let mb='';
  MONTHS.forEach(m=>{
   const c=C[m].length,r=R[m].length;
+  if(unavailable(m)){mb+='<div class="mcol" onclick="show(\''+m+'\')"><div class="pair">—</div><div class="mlab">'+ml(m)+'</div><div class="msub">'+monthState(m)+'</div></div>';return;}
   mb+='<div class="mcol" onclick="show(\''+m+'\')"><div class="pair">'
    +'<div class="bwrap"><div class="bv" style="color:'+BLUE+'">'+c+'</div><div class="mbar" style="height:'+(maxv?c/maxv*100:0)+'%;background:'+BLUE+'"></div></div>'
    +'<div class="bwrap"><div class="bv" style="color:'+GOLD+'">'+r+'</div><div class="mbar" style="height:'+(maxv?r/maxv*100:0)+'%;background:'+GOLD+'"></div></div>'
-   +'</div><div class="mlab">'+ml(m)+'</div><div class="msub">'+(isCur(m)?'진행 중':'월 전체')+'</div></div>';
+   +'</div><div class="mlab">'+ml(m)+'</div><div class="msub">'+monthState(m)+'</div></div>';
  });
+
+ const maxTotal=Math.max(1,...MONTHS.map(m=>C[m].length+R[m].length));
+ const combined=MONTHS.map(m=>{
+  const total=C[m].length+R[m].length;
+  return '<div class="mcol" data-month="'+m+'" data-total="'+(unavailable(m)?'':total)+'" onclick="show(\''+m+'\')"><div class="pair">'
+   +(unavailable(m)?'—':'<div class="bwrap"><div class="bv">'+total+'건</div><div class="mbar" style="height:'+(total/maxTotal*100)+'%;background:'+NAVY+'"></div></div>')
+   +'</div><div class="mlab">'+ml(m)+'</div><div class="msub">'+monthState(m)+'</div></div>';
+ }).join('');
 
  const cats=Object.keys(cnt(CLAIM,r=>r.cat));
  const leg='<div class="legend">'+cats.map(c=>'<span><i class="dot" style="background:'+(CATCOLOR[c]||'#999')+'"></i>'+esc(c)+'</span>').join('')+'</div>';
  let cs='';
  MONTHS.forEach(m=>{
+  if(unavailable(m)){cs+='<div class="brow"><div class="blabel">'+ml(m)+' · '+monthState(m)+'</div><div class="btrack"></div><div class="bnum">—</div></div>';return;}
   const rs=C[m];if(!rs.length){cs+='<div class="brow"><div class="blabel" style="width:60px;font-weight:700">'+ml(m)+'</div><div class="btrack"></div><div class="bnum">0건</div></div>';return;}
   const cc=cnt(rs,r=>r.cat);let sg='';
   cats.forEach(c=>{const v=cc[c]||0;if(v)sg+='<div class="bfill" style="width:'+(v/rs.length*100).toFixed(1)+'%;background:'+(CATCOLOR[c]||'#999')+'" title="'+esc(c)+' '+v+'건"></div>';});
@@ -213,7 +230,7 @@ function dash(){
  const ins=[];
  const tot=CLAIM.length+RETURN.length;
  ins.push('전체 파손 접수 기록은 '+tot+'건이며, 이 중 고객 클레임은 '+CLAIM.length+'건('+(tot?Math.round(CLAIM.length/tot*100):0)+'%), 파손반송은 '+RETURN.length+'건('+(tot?Math.round(RETURN.length/tot*100):0)+'%)입니다.');
- const full=MONTHS.filter(m=>!isCur(m));
+ const full=MONTHS.filter(m=>!isCur(m)&&!unavailable(m));
  if(full.length){
   const worst=full.slice().sort((a,b)=>R[b].length-R[a].length)[0];
   ins.push(ml(worst)+'은 파손반송이 '+R[worst].length+'건으로 고객 클레임('+C[worst].length+'건)의 '+(C[worst].length?(R[worst].length/C[worst].length).toFixed(1):'—')+'배에 달합니다. 파손 손실의 몸통이 배송 단계에 있음을 의미합니다.');
@@ -225,12 +242,14 @@ function dash(){
 
  document.getElementById('view').innerHTML=
   '<div class="note"><b>고객 클레임</b>은 고객 파손 접수 기록, <b>택배사 파손반송</b>은 CRM에서 파손반송으로 분류한 기록입니다. 건수는 접수 기록 수이며 제품 수량과 다릅니다. 사진은 원본에 등록된 경우 표시됩니다.</div>'
+  +(MONTHS.some(unavailable)?'<div class="note">시트 준비 중이거나 연결 오류인 월이 있습니다. 아래 누적 수치와 합계는 조회가 완료된 월만 포함합니다.</div>':'')
   +'<div class="stats">'
   +'<div class="stat t1"><div class="n">'+CLAIM.length+'</div><div class="l">고객 클레임</div><div class="d">고객 수령 후 파손 접수</div></div>'
   +'<div class="stat t2"><div class="n">'+RETURN.length+'</div><div class="l">택배사 파손반송</div><div class="d">고객 미수령 · 배송 중 파손</div></div>'
   +'<div class="stat t3"><div class="n">'+tot+'</div><div class="l">전체 파손 발생</div><div class="d">두 트랙 합계</div></div>'
   +'</div>'
   +'<div class="panel"><h2>월별 파손 발생 비교</h2><div class="pdesc">파란색 = 고객 클레임 · 골드색 = 택배사 파손반송 · 막대 클릭 시 월별 상세</div><div class="legend"><span><i class="dot" style="background:'+BLUE+'"></i>고객 클레임</span><span><i class="dot" style="background:'+GOLD+'"></i>택배사 파손반송</span></div><div class="mbars">'+mb+'</div></div>'
+  +'<div class="panel" id="combined-chart"><h2>월별 전체 파손 접수 합계</h2><div class="pdesc">고객 클레임 + 택배사 파손반송 · 접수 기록 수 기준 · 공장 반품 수량 제외 · 확인 불가 월은 합산하지 않습니다.</div><div class="mbars">'+combined+'</div></div>'
   +factoryPanel()
   +photoPanel()
   +'<div class="panel"><h2>고객 클레임 · 월별 카테고리 구성</h2>'+leg+cs+'</div>'
@@ -274,6 +293,10 @@ function voicePanel(){
 }
 
 function month(m){
+ if(unavailable(m)){
+  document.getElementById('view').innerHTML='<div class="note"><b>'+ml(m)+' · '+monthState(m)+'</b><br>접수 건수는 확인 전까지 표시하지 않습니다. 원본 시트가 준비되면 자동으로 다시 조회합니다.</div>'+photoPanel(m)+factoryPanel(m);
+  return;
+ }
  const c=CLAIM.filter(r=>r.date.slice(0,7)===m).sort((a,b)=>a.date<b.date?-1:1);
  const r=RETURN.filter(x=>x.date.slice(0,7)===m).sort((a,b)=>a.date<b.date?-1:1);
  IMG_IDS=[];
@@ -322,6 +345,9 @@ function navLB(d){if(!IMG_IDS.length||!document.getElementById('lb').classList.c
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLB();if(e.key==='ArrowRight')navLB(1);if(e.key==='ArrowLeft')navLB(-1);});
 function phFail(img,orig){const d=document.createElement('div');d.className='phfail';d.innerHTML='이미지 로딩 실패<a href="'+orig+'" target="_blank" rel="noopener">원본 열기 ↗</a>';img.parentNode.replaceWith(d);}
 load();
+function autoRefresh(){if(!loading&&(!DATA||DATA.liveMonth!==currentMonth()||Date.now()-lastLoaded>=300000))return load();}
+setInterval(()=>{if(!document.hidden)autoRefresh();},60000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)autoRefresh();});
 </script>
 </body>
 </html>
