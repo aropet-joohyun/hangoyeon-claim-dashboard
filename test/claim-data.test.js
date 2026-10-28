@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { loadAllMonths } from '../lib/claim-data.js';
 import { parseCSV, normalizeDate, parseArchive, parseCRM, combineRows, summarizeFactory, loadDashboard, photoURL, parsePhotoForms, attachPhotoForms } from '../lib/claim-data.js';
 
 const csv = rows => rows.map(row => row.map(v => '"' + String(v ?? '').replaceAll('"', '""') + '"').join(',')).join('\r\n');
@@ -11,6 +12,33 @@ const crm = csv([[],[],[],[],crmHeaders,['2026. 9. 16','한고연스스','파손
 const factory = csv([factoryHeaders, ['2026.09.16','한고연스스','모래','2','1','파손반송']]);
 const photoHeaders = ['날짜','구매처','상품주문번호','고객명','제품명','카테고리','수량','사진1','사진2','사진3','고객메모'];
 const photos = csv([photoHeaders]);
+
+test('October loads its own tabs while September remains intact', async () => {
+  const requested = [];
+  const data = await loadAllMonths(async url => {
+    requested.push(url);
+    if (url.includes('gid=23809276')) return new Response(crm.replaceAll('2026. 9. 16', '2026. 10. 16'));
+    if (url.includes('gid=24962578')) return new Response(factory.replaceAll('2026.09.16', '2026.10.16'));
+    return fetcher()(url);
+  });
+  assert.equal(data.liveMonth, '2026-10');
+  assert.deepEqual(data.rows.map(r => r.date).sort(), ['2026-08-03', '2026-09-16', '2026-10-16']);
+  for (const month of ['2026-09', '2026-10']) {
+    assert.equal(data.factories[month].records, 1);
+    assert.equal(data.photoSummaries[month].month, month);
+  }
+  assert.ok(requested.some(url => url.includes('gid=23809276')));
+  assert.ok(requested.some(url => url.includes('gid=24962578')));
+});
+
+test('October photo forms are selected independently of September', () => {
+  const text = csv([photoHeaders,
+    ['2026-09-16','한고연스스','2026091612345678','김철수','모래','','1','https://drive.google.com/open?id=sep'],
+    ['2026-10-16','한고연스스','2026101612345678','김철수','모래','','1','https://drive.google.com/open?id=oct']]);
+  const rows = parsePhotoForms(text, '2026-10');
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].date, '2026-10-16');
+});
 
 test('CSV keeps quoted multiline fields, commas, escaped quotes and Korean BOM headers', () => {
   assert.deepEqual(parseCSV('\uFEFF' + csv([['날짜','사유'],['2026. 9. 2','문의, "파손"\n>교환']])), [['날짜','사유'],['2026. 9. 2','문의, "파손"\n>교환']]);
@@ -61,6 +89,13 @@ test('factory figures stay separate; blank quantities and other shops are handle
 test('photo URLs accept Drive IDs and reject unsafe or unrelated destinations',()=>{
   assert.equal(photoURL('https://drive.google.com/open?id=photo_123'),'https://drive.google.com/file/d/photo_123/view');
   for(const value of ['javascript:alert(1)','https://evil.example/d/a','https://drive.google.com.evil.example/d/a'])assert.equal(photoURL(value),'');
+});
+test('October factory numeric date header is recovered only with a verified layout', () => {
+  const headers = [...factoryHeaders]; headers[0] = '582136';
+  const result = summarizeFactory(csv([headers, ['2026.10.16','한고연스스','모래','2','1']]), '2026-10');
+  assert.equal(result.records, 1);
+  assert.equal(result.latestDate, '2026-10-16');
+  assert.throws(() => summarizeFactory('알수없는열,업체명,품목,정상수량,파손수량\n2026.10.16,한고연스스,모래,2,1', '2026-10'));
 });
 function fetcher(overrides={}) {
   return async url => {
