@@ -160,7 +160,7 @@ async function load(){
 }
 function buildNav(){
  let h='<a data-v="dash" class="on" onclick="show(\'dash\')">월별 비교</a>';
- MONTHS.forEach(m=>{h+='<a data-v="'+m+'" onclick="show(\''+m+'\')">'+ml(m)+' 상세</a>';});
+ MONTHS.forEach(m=>{h+='<a data-v="'+m+'" onclick="show(\''+m+'\')">'+ml(m)+'</a>';});
  document.getElementById('nav').innerHTML=h;
 }
 function show(v){
